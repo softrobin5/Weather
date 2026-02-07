@@ -1,0 +1,8 @@
+services:
+  weather-bot:
+    build: .
+    ports:
+      - "80:80"
+    environment:
+      - WEATHER_API_KEY=your_api_key_here
+    command: python bot.py
