@@ -1,22 +1,39 @@
-# bot.py
-import os
+from flask import Flask, render_template, request
 import requests
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+import os
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text('Hello! I am a weather bot.')
+app = Flask(__name__)
 
-async def weather(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    city = " ".join(context.args) if context.args else "Delhi"
-    await update.message.reply_text(f'Weather in {city}: Sunny, 32°C')
+API_KEY = os.getenv("WEATHER_API_KEY", "PUT_YOUR_API_KEY_HERE")
 
-def main():
-    token = os.getenv("TELEGRAM_BOT_TOKEN")
-    app = ApplicationBuilder().token(token).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("weather", weather))
-    app.run_polling()
 
-if __name__ == '__main__':
-    main()
+def get_weather(city):
+    url = f"https://api.openweathermap.org/data/2.5/weather?q={city}&appid={API_KEY}&units=metric"
+    response = requests.get(url)
+    return response.json()
+
+
+@app.route("/", methods=["GET", "POST"])
+def index():
+    weather_data = None
+    error = None
+
+    if request.method == "POST":
+        city = request.form.get("city")
+        data = get_weather(city)
+
+        if data.get("cod") != 200:
+            error = "City not found!"
+        else:
+            weather_data = {
+                "city": data["name"],
+                "temp": data["main"]["temp"],
+                "humidity": data["main"]["humidity"],
+                "description": data["weather"][0]["description"],
+                "wind": data["wind"]["speed"]
+            }
+
+    return render_template("index.html", weather=weather_data, error=error)
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=True)
